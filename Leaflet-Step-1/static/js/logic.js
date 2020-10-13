@@ -50,47 +50,47 @@ function createMap(quakeLocations) {
   legend.addTo(map);
 };
   
-  function plotQuakes(response) {
+function plotQuakes(response) {
+
+  // Get Quake data from the response
+  var quakes = response.features;
   
-    // Get Quake data from the response
-    var quakes = response.features;
+  // var depth = response.features[0].geometry.coordinates[2]
+
+  // Initialize an array to hold bike markers
+  var quakeMarkers = [];
+
+  // Loop through the stations array
+  for (var i = 0; i < quakes.length; i++) {
+    var quake = quakes[i];
+    var lon = quake.geometry.coordinates[0];
+    var lat = quake.geometry.coordinates[1];
+    var depth = quake.geometry.coordinates[2];
+    var place = quake.properties.place;
+    var date = Date(quake.properties.time);
+    var magnitude = quake.properties.mag;
     
-    // var depth = response.features[0].geometry.coordinates[2]
-  
-    // Initialize an array to hold bike markers
-    var quakeMarkers = [];
+    // For each station, create a marker and bind a popup with the station's name
+    var quakeMarker = L.circleMarker([lat, lon], {
+      color: "black",
+      weight: 1,
+      fillColor: getColor(depth),
+      fillOpacity: 0.85,
+      radius: magnitude * 5
+    })
+      // Truncate the coordinates to 2 decimal places in the popup
+      .bindPopup("<h3>Location: " + place + "</h3>" + "<h3>Latitude: " + 
+      Math.round((lat + Number.EPSILON) * 100) / 100 + ", Longitude: " + 
+      Math.round((lon + Number.EPSILON) * 100) / 100 + "</h3>" + "<h3>Magnitude: " + 
+      magnitude + "</h3>" + "<h3>Date: " + date + "</h3>");
 
-    // Loop through the stations array
-    for (var i = 0; i < quakes.length; i++) {
-      var quake = quakes[i];
-      var lon = quake.geometry.coordinates[0];
-      var lat = quake.geometry.coordinates[1];
-      var depth = quake.geometry.coordinates[2];
-      var place = quake.properties.place;
-      var date = Date(quake.properties.time);
-      var magnitude = quake.properties.mag;
-      
-      // For each station, create a marker and bind a popup with the station's name
-      var quakeMarker = L.circleMarker([lat, lon], {
-        color: "black",
-        weight: 1,
-        fillColor: getColor(depth),
-        fillOpacity: 0.85,
-        radius: magnitude * 5
-      })
-        // Truncate the coordinates to 2 decimal places in the popup
-        .bindPopup("<h3>Location: " + place + "</h3>" + "<h3>Latitude: " + 
-        Math.round((lat + Number.EPSILON) * 100) / 100 + ", Longitude: " + 
-        Math.round((lon + Number.EPSILON) * 100) / 100 + "</h3>" + "<h3>Magnitude: " + 
-        magnitude + "</h3>" + "<h3>Date: " + date + "</h3>");
-  
-      // Add the marker to the quakeMarkers array
-      quakeMarkers.push(quakeMarker);
-    }
-
-    // Create a layer group made from the bike markers array, pass it into the createMap function
-    createMap(L.layerGroup(quakeMarkers));
+    // Add the marker to the quakeMarkers array
+    quakeMarkers.push(quakeMarker);
   }
+
+  // Create a layer group made from the bike markers array, pass it into the createMap function
+  createMap(L.layerGroup(quakeMarkers));
+}
 
 // Returns the circleColor and used to build the legend
 function getColor(d) {
