@@ -1,29 +1,77 @@
 function createMap(quakeLocations) {
 
-  // Create the tile layer that will be the background of our map
-  var lightmap = L.tileLayer("https://api.mapbox.com/styles/v1/mapbox/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}", {
+  // Create the tile layers that will be the background of our map
+  var lightMap = L.tileLayer("https://api.mapbox.com/styles/v1/mapbox/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}", {
     attribution: "Map data &copy; <a href=\"https://www.openstreetmap.org/\">OpenStreetMap</a> contributors, <a href=\"https://creativecommons.org/licenses/by-sa/2.0/\">CC-BY-SA</a>, Imagery © <a href=\"https://www.mapbox.com/\">Mapbox</a>",
     maxZoom: 12,
     id: "light-v10",
     accessToken: API_KEY
   });
 
+  var satMap = L.tileLayer("https://api.mapbox.com/styles/v1/mapbox/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}", {
+    attribution: "Map data &copy; <a href=\"https://www.openstreetmap.org/\">OpenStreetMap</a> contributors, <a href=\"https://creativecommons.org/licenses/by-sa/2.0/\">CC-BY-SA</a>, Imagery © <a href=\"https://www.mapbox.com/\">Mapbox</a>",
+    maxZoom: 12,
+    id: "satellite-v9",
+    accessToken: API_KEY
+  });
+
+  geoData = "static/data/PB2002_boundaries.json";
+  //------------------------------------------
+  // DOESN'T WORK
+  // plateBoundaries = []
+  
+  // d3.json(geoData, function(data) {
+  //   console.log(data)
+  //   var plates = data.features
+  //   console.log(plates[1].geometry.coordinates)
+  //   for (var i = 0; i < plates.length; i++) {
+  //     var plate = plates[i]
+  //     plateCoords = plate.geometry.coordinates
+  //     plateBoundaries.push(L.polyline(plateCoords, {color: 'orange'}).addTo(map))
+  //   }
+  // })
+  // WORKS
+  // d3.json(geoData, function(data) {
+  //   // Creating a geoJSON layer with the retrieved data
+  //   plateBoundary = L.geoJson(data, {
+  //     // Style each feature (in this case a neighborhood)
+  //     style: function(feature) {
+  //       return {
+  //         color: "orange",
+  //         weight: 3
+  //       };
+  //     },
+  //     // Called on each feature 
+  //   }).addTo(map);
+  // })
+  //----------------------------------------------------------------
+
   // Create a baseMaps object to hold the lightmap layer
   var baseMaps = {
-    // "Light Map": lightmap
-  };
-
-  // Create an overlayMaps object to hold the bikeStations layer
-  var overlayMaps = {
-    "Earthquake Locations": quakeLocations
+    "Light Map": lightMap,
+    "Satellite Map": satMap
   };
 
   // Create the map object with options
   var map = L.map("mapid", {
     center: [39.8283, -98.5795],
     zoom: 5,
-    layers: [lightmap, quakeLocations]
+    layers: [lightMap, quakeLocations]
   });
+
+  // Create the heatmap layer
+  var heat = L.heatLayer(heatLocations, {
+    radius: 25,
+    blur: 35,
+    max: 0.005
+  });
+  plateBoundaries = []
+  // Create an overlayMaps object to hold the bikeStations layer
+  var overlayMaps = {
+    "Earthquake Locations": quakeLocations,
+    // "Tectonic Plate Boundaries": plateBoundaries,
+    "Heatmap": heat
+  };
 
   // Create a layer control, pass in the baseMaps and overlayMaps. Add the layer control to the map
   L.control.layers(baseMaps, overlayMaps).addTo(map);
@@ -48,49 +96,63 @@ function createMap(quakeLocations) {
   };
 
   legend.addTo(map);
-};
-  
-  function plotQuakes(response) {
-  
-    // Get Quake data from the response
-    var quakes = response.features;
-    
-    // var depth = response.features[0].geometry.coordinates[2]
-  
-    // Initialize an array to hold bike markers
-    var quakeMarkers = [];
 
-    // Loop through the stations array
-    for (var i = 0; i < quakes.length; i++) {
-      var quake = quakes[i];
-      var lon = quake.geometry.coordinates[0];
-      var lat = quake.geometry.coordinates[1];
-      var depth = quake.geometry.coordinates[2];
-      var place = quake.properties.place;
-      var date = Date(quake.properties.time);
-      var magnitude = quake.properties.mag;
-      
-      // For each station, create a marker and bind a popup with the station's name
-      var quakeMarker = L.circleMarker([lat, lon], {
-        color: "black",
-        weight: 1,
-        fillColor: getColor(depth),
-        fillOpacity: 0.85,
-        radius: magnitude * 5
-      })
-        // Truncate the coordinates to 2 decimal places in the popup
-        .bindPopup("<h3>Location: " + place + "</h3>" + "<h3>Latitude: " + 
-        Math.round((lat + Number.EPSILON) * 100) / 100 + ", Longitude: " + 
-        Math.round((lon + Number.EPSILON) * 100) / 100 + "</h3>" + "<h3>Magnitude: " + 
-        magnitude + "</h3>" + "<h3>Date: " + date + "</h3>");
-  
-      // Add the marker to the quakeMarkers array
-      quakeMarkers.push(quakeMarker);
+};
+
+// Create a container for coordinates that will be passed to the heatmap layer
+var heatLocations = []
+
+function plotQuakes(response) {
+
+  // Get Quake data from the response
+  var quakes = response.features;
+
+  // Initialize an array to hold bike markers
+  var quakeMarkers = [];
+
+  // Loop through the stations array
+  for (var i = 0; i < quakes.length; i++) {
+    var quake = quakes[i];
+    var lon = quake.geometry.coordinates[0];
+    var lat = quake.geometry.coordinates[1];
+    var depth = quake.geometry.coordinates[2];
+    var place = quake.properties.place;
+    var date = Date(quake.properties.time);
+    var magnitude = quake.properties.mag;
+    
+    heatLocations.push([lat, lon]);
+
+    // Calculate radius size (makes small quakes visible)
+    function getRadius(mag) {
+      if (magnitude <= 0.75) {
+        return (magnitude + 3)
+      }
+      else {
+        return (magnitude * 5)
+      }
     }
 
-    // Create a layer group made from the bike markers array, pass it into the createMap function
-    createMap(L.layerGroup(quakeMarkers));
+    // For each station, create a marker and bind a popup with the station's name
+    var quakeMarker = L.circleMarker([lat, lon], {
+      color: "black",
+      weight: 1,
+      fillColor: getColor(depth),
+      fillOpacity: 0.85,
+      radius: getRadius(magnitude)
+    })
+      // Truncate the coordinates to 2 decimal places in the popup
+      .bindPopup("<h3>Location: " + place + "</h3>" + "<h3>Latitude: " + 
+      Math.round((lat + Number.EPSILON) * 100) / 100 + ", Longitude: " + 
+      Math.round((lon + Number.EPSILON) * 100) / 100 + "</h3>" + "<h3>Magnitude: " + 
+      magnitude + "</h3>" + "<h3>Date: " + date + "</h3>");
+
+    // Add the marker to the quakeMarkers array
+    quakeMarkers.push(quakeMarker);
   }
+
+  // Create a layer group made from the bike markers array, pass it into the createMap function
+  createMap(L.layerGroup(quakeMarkers));
+}
 
 // Returns the circleColor and used to build the legend
 function getColor(d) {
@@ -108,7 +170,7 @@ function getColor(d) {
     return "#FFA500";
   }
   else if (d < 160) {
-    return "#FF4500";
+    return "#FF6133";
   }
   else {
     return "#FF0000";
@@ -120,4 +182,3 @@ url = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojso
 
 // Perform an API call to the USGS site then call a function to create markers for the earthquakes
 d3.json(url, plotQuakes);
-  
