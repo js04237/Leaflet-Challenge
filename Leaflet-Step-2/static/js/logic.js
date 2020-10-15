@@ -16,35 +16,21 @@ function createMap(quakeLocations) {
   });
 
   geoData = "static/data/PB2002_boundaries.json";
-  //------------------------------------------
-  // DOESN'T WORK
-  // plateBoundaries = []
-  
-  // d3.json(geoData, function(data) {
-  //   console.log(data)
-  //   var plates = data.features
-  //   console.log(plates[1].geometry.coordinates)
-  //   for (var i = 0; i < plates.length; i++) {
-  //     var plate = plates[i]
-  //     plateCoords = plate.geometry.coordinates
-  //     plateBoundaries.push(L.polyline(plateCoords, {color: 'orange'}).addTo(map))
-  //   }
-  // })
-  // WORKS
-  // d3.json(geoData, function(data) {
-  //   // Creating a geoJSON layer with the retrieved data
-  //   plateBoundary = L.geoJson(data, {
-  //     // Style each feature (in this case a neighborhood)
-  //     style: function(feature) {
-  //       return {
-  //         color: "orange",
-  //         weight: 3
-  //       };
-  //     },
-  //     // Called on each feature 
-  //   }).addTo(map);
-  // })
-  //----------------------------------------------------------------
+
+  var tectonicPlates = new L.layerGroup()
+
+  d3.json(geoData, function(data) {
+    // Creating a geoJSON layer with the retrieved data
+    plateBoundary = L.geoJson(data, {
+      // Style each feature
+      style: function(feature) {
+        return {
+          color: "orange",
+          weight: 3
+        };
+      }
+    }).addTo(tectonicPlates);
+  })
 
   // Create a baseMaps object to hold the lightmap layer
   var baseMaps = {
@@ -54,22 +40,36 @@ function createMap(quakeLocations) {
 
   // Create the map object with options
   var map = L.map("mapid", {
-    center: [39.8283, -98.5795],
-    zoom: 5,
+    center: [30, -10],
+    zoom: 3,
     layers: [lightMap, quakeLocations]
   });
 
+  // Create a layergroup for the clusters
+  var quakeClusters = new L.markerClusterGroup()
+
+  // Loop through data
+  for (var i = 0; i < locations.length; i++) {
+
+    // Set the data location property to a variable
+    var location = locations[i];
+    // Add each location to the layergroup
+    quakeClusters.addLayer(L.marker(location))
+    
+  }
+
   // Create the heatmap layer
-  var heat = L.heatLayer(heatLocations, {
+  var heat = L.heatLayer(locations, {
     radius: 25,
     blur: 35,
     max: 0.005
   });
-  plateBoundaries = []
+
   // Create an overlayMaps object to hold the bikeStations layer
   var overlayMaps = {
     "Earthquake Locations": quakeLocations,
-    // "Tectonic Plate Boundaries": plateBoundaries,
+    "Tectonic Plate Boundaries": tectonicPlates,
+    "Cluster Map": quakeClusters,
     "Heatmap": heat
   };
 
@@ -78,8 +78,9 @@ function createMap(quakeLocations) {
 
   var legend = L.control({position: 'bottomright'});
 
+  // Setup the legend
   legend.onAdd = function (map) {
-
+    // Match the legend colors to the earthquake circle colors
     var div = L.DomUtil.create('div', 'info legend'),
       depthRanges = [0, 10, 30, 60, 100, 160],
       labels = [];
@@ -94,17 +95,32 @@ function createMap(quakeLocations) {
 
     return div;
   };
-
+  // Add the legend to the map
   legend.addTo(map);
 
-};
+  // Add the legend to the map when 'Earthquake Locations' are selected
+  map.on('overlayadd', function(eventLayer) {
+    if (eventLayer.name === 'Earthquake Locations') {
+        map.addControl(legend);
+    } 
+  });
+  
+  // Remove the legend to the map when 'Earthquake Locations' are de-selected
+  map.on('overlayremove', function(eventLayer){
+    if (eventLayer.name === 'Earthquake Locations'){
+        map.removeControl(legend);
+    } 
+  });
+
+}
 
 // Create a container for coordinates that will be passed to the heatmap layer
-var heatLocations = []
+var locations = []
 
 function plotQuakes(response) {
 
   // Get Quake data from the response
+  data = response
   var quakes = response.features;
 
   // Initialize an array to hold bike markers
@@ -120,7 +136,7 @@ function plotQuakes(response) {
     var date = Date(quake.properties.time);
     var magnitude = quake.properties.mag;
     
-    heatLocations.push([lat, lon]);
+    locations.push([lat, lon]);
 
     // Calculate radius size (makes small quakes visible)
     function getRadius(mag) {
@@ -175,10 +191,12 @@ function getColor(d) {
   else {
     return "#FF0000";
   }
-};
+}
 
 // USGS GeoJSON site for all earthquakes in the past week
 url = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson"
+
+url2 = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_month.geojson"
 
 // Perform an API call to the USGS site then call a function to create markers for the earthquakes
 d3.json(url, plotQuakes);
