@@ -32,6 +32,22 @@ function createMap(quakeLocations) {
     }).addTo(tectonicPlates);
   })
 
+  // Incomplete - this needs more detail
+  var bigQuakes = new L.layerGroup()
+
+  d3.json(url2, function(data) {
+    // Creating a geoJSON layer with the retrieved data
+    plateBoundary = L.geoJson(data, {
+      // Style each feature
+      style: function(feature) {
+        return {
+          color: "orange",
+          weight: 3
+        };
+      }
+    }).addTo(bigQuakes);
+  })
+
   // Create a baseMaps object to hold the lightmap layer
   var baseMaps = {
     "Light Map": lightMap,
@@ -67,10 +83,11 @@ function createMap(quakeLocations) {
 
   // Create an overlayMaps object to hold the bikeStations layer
   var overlayMaps = {
-    "Earthquake Locations": quakeLocations,
+    "Earthquake Locations in the Past Week": quakeLocations,
     "Tectonic Plate Boundaries": tectonicPlates,
-    "Cluster Map": quakeClusters,
-    "Heatmap": heat
+    "Cluster Map (Past Week)": quakeClusters,
+    "Heatmap (Past Week)": heat,
+    "Quakes > 4.5 Mag in the Past 30 Days": bigQuakes
   };
 
   // Create a layer control, pass in the baseMaps and overlayMaps. Add the layer control to the map
@@ -196,6 +213,7 @@ function getColor(d) {
 // USGS GeoJSON site for all earthquakes in the past week
 url = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson"
 
+// Not currently in use
 url2 = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_month.geojson"
 
 // Perform an API call to the USGS site then call a function to create markers for the earthquakes
